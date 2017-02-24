@@ -69,6 +69,7 @@ private:
   G4UIcmdWith3VectorAndUnit * m_detRotCmd;
   G4UIcmdWithAString *        m_detEFieldFileCmd;
   G4UIcmdWith3VectorAndUnit * m_testStructPosCmd;
+  G4UIcmdWith3VectorAndUnit * m_testStructParCmd;
   G4UIcmdWith3VectorAndUnit * m_testStructRotCmd;
   G4UIcmdWithAnInteger *      m_testStructDetLinkCmd;
   G4UIcmdWithAnInteger *      m_testStructType;

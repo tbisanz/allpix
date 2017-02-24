@@ -90,6 +90,7 @@ public:
 	void SetAppliancesType(int type){m_Appliances_type = type;};
 
 	void SetTestStructurePosition(G4ThreeVector);
+	void SetTestStructureParameters(G4ThreeVector);
 	void SetTestStructureRotation(G4ThreeVector);
 	void SetTestStructureDetectorLink(G4int);
 	void SetAppliancePosition(G4ThreeVector);
@@ -160,9 +161,11 @@ private:
 
 	// pos,rot test structure
 	map<int, G4ThreeVector> m_posVectorTestStructure; // position of test structure
+	map<int, G4ThreeVector> m_parVectorTestStructure; // parameters of test structure
 	map<int, G4RotationMatrix *> m_rotVectorTestStructure; // rotation of test structure
 	map<G4int, G4int> m_detectorLinkTestStructure;
 	G4int m_nTestPositions;
+	G4int m_nTestParameters;
 	G4int m_nTestRotation;
 
 	// pos appliance
