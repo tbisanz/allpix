@@ -197,6 +197,13 @@ AllPixDetectorMessenger::AllPixDetectorMessenger(
 	m_testStructRotCmd->SetUnitCategory("Angle");
 	m_testStructRotCmd->AvailableForStates(G4State_PreInit, G4State_Idle);
 
+	m_testStructParCmd = new G4UIcmdWith3VectorAndUnit("/allpix/extras/setTestStructureParameters", this);
+	m_testStructParCmd->SetGuidance("Set three parameters for the test structure");
+	m_testStructParCmd->SetParameterName("par1", "par2", "par3", true, true); // non omittable, no default
+	m_testStructParCmd->SetDefaultValue(G4ThreeVector(0.,0.,0.));
+	m_testStructParCmd->SetUnitCategory("Length");
+	m_testStructParCmd->AvailableForStates(G4State_PreInit, G4State_Idle);
+
 	m_testStructDetLinkCmd = new G4UIcmdWithAnInteger("/allpix/extras/setTestStructureDetLink", this);
 	m_testStructDetLinkCmd->SetGuidance("Detector ID for related sensor");
 	m_testStructDetLinkCmd->SetParameterName("ID", true);
@@ -241,6 +248,7 @@ AllPixDetectorMessenger::~AllPixDetectorMessenger()
 	delete m_detPosCmd;
 	delete m_detRotCmd;
 	delete m_testStructPosCmd;
+	delete m_testStructParCmd;
 	delete m_testStructRotCmd;
 	delete m_detAppliancePosCmd;
 	delete m_UpdateCmd;
@@ -325,6 +333,13 @@ void AllPixDetectorMessenger::SetNewValue(G4UIcommand* command, G4String newValu
 		m_AllPixDetector->SetBuildTestStructure(true);
 		m_AllPixDetector->SetTestStructurePosition(
 				m_testStructPosCmd->GetNew3VectorValue(newValue)
+		);
+	}
+
+	if( command == m_testStructParCmd )
+	{
+		m_AllPixDetector->SetTestStructureParameters(
+				m_testStructParCmd->GetNew3VectorValue(newValue)
 		);
 	}
 

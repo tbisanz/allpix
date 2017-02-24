@@ -360,6 +360,11 @@ void AllPixDetectorConstruction::SetTestStructurePosition(G4ThreeVector pos){
     m_nTestPositions++;
 }
 
+void AllPixDetectorConstruction::SetTestStructureParameters(G4ThreeVector par){
+    m_parVectorTestStructure[m_nTestPositions] = par;
+    m_nTestParameters++;
+}
+
 void AllPixDetectorConstruction::SetTestStructureRotation(G4ThreeVector rot){
     m_rotVectorTestStructure[m_nTestRotation] = new G4RotationMatrix();
     m_rotVectorTestStructure[m_nTestRotation]->rotateX(rot.x());
@@ -1149,15 +1154,15 @@ void AllPixDetectorConstruction::SetPeakMagField(G4ThreeVector fieldValues)
 		fieldMgr->SetDetectorField(m_magField);
 		fieldMgr->CreateChordFinder(m_magField);
 
-        fieldMgr->SetMinimumEpsilonStep( 1e-7 );
-        fieldMgr->SetMaximumEpsilonStep( 1e-6 );
-        fieldMgr->SetDeltaOneStep( 0.05e-3 * mm );  // 0.5 micrometer
+		fieldMgr->SetMinimumEpsilonStep( 1e-7 );
+		fieldMgr->SetMaximumEpsilonStep( 1e-6 );
+		fieldMgr->SetDeltaOneStep( 0.05e-3 * mm );  // 0.5 micrometer
 
 
-    } else {
-        m_magField = 0x0;
-        //fieldMgr->SetDetectorField(m_magField);
-    }
+	} else {
+	  m_magField = 0x0;
+	  //fieldMgr->SetDetectorField(m_magField);
+	}
 
 
     //if(m_magField) {
