@@ -57,6 +57,9 @@ AllPixMimosa26Digitizer::AllPixMimosa26Digitizer(G4String modName, G4String hits
 	memcpy(xsig, xs, __SIG_SIZE);
 	memcpy(ysig, ys, __SIG_SIZE);
 
+	hasCSmap = false;
+	readCSmap();
+
 }
 
 AllPixMimosa26Digitizer::~AllPixMimosa26Digitizer(){
@@ -79,7 +82,63 @@ int AllPixMimosa26Digitizer::indexofSmallestElement(double array[], int size)
     return index;
 }
 
+void AllPixMimosa26Digitizer::readCSmap()
+{
 
+    string filename = "macros/config/mimosaClusterSizeProb.csv";
+    ifstream inp(filename);
+
+    if(inp.is_open()){
+        inp >> CSbins >> CSsizes;
+	vector<double> onedim;
+	vector<vector<double>> twodim;
+	onedim.reserve(CSbins);
+	twodim.reserve(CSbins);
+
+	cout << "Cluster size map: Reading " << CSbins << " bins with " << CSsizes << " entries each." << endl;
+
+	G4int bx,by;
+	double bc;
+
+	for(size_t ix = 0; ix < CSbins; ix++){
+	    for(size_t iy = 0; iy < CSbins; iy++){
+	        inp >> bx >> by;
+	        for(size_t ic = 0; ic < CSsizes; ic++){
+		    inp >> bc;
+		    onedim.push_back(bc);
+		}
+		twodim.push_back(onedim);
+		onedim.clear();
+	    }
+	    CSmap.push_back(twodim);
+	    twodim.clear();
+	}
+	inp.close();
+	hasCSmap = true;
+    }else{
+        cout << "File could not be opened." << endl;
+    }
+
+}
+
+G4int AllPixMimosa26Digitizer::getClusterSize(G4double xpos, G4double ypos)
+{
+
+    G4int xgrid = floor((xpos+hpitchX)/pitchX*CSbins);
+    G4int ygrid = floor((ypos+hpitchY)/pitchY*CSbins);
+
+    G4int clSize = 1;
+
+    G4double rand = CLHEP::RandFlat::shoot(1);
+    for(size_t ic = 0; ic < CSsizes; ic++){
+        if(rand < CSmap[xgrid][ygrid][ic]){
+	    clSize = ic+1;
+	    break;
+	}
+    }
+    return clSize;
+
+}
 
 void AllPixMimosa26Digitizer::SetDetectorDigitInputs(G4double /*thl*/){
 
@@ -128,251 +187,367 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 		//G4cout << "Hit position ib z : " << zpos << endl;
 
-		G4double dist[5] = {0,0,0,0,0};
-		for(int i =0;i<5;i++){
-			dist[i] = TMath::Sqrt(pow(fabs(xpos)-xsig[i],2)+pow(fabs(ypos)-ysig[i],2));
-		}
+		if(hasCSmap){
 
-		int cluster_type = indexofSmallestElement(dist,5);
+		  G4int clusterSize = getClusterSize(xpos,ypos);
+		  if(zpos>(gD->GetSensorZ()/2.-depletionDepth)){
 
-		if(zpos>(gD->GetSensorZ()/2.-depletionDepth)){
-		switch (cluster_type) {
+		    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		    pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
-		case 0 :
-			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-			pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-			break;
-
-
-		case 1 :
-
-			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-			pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-			if(xpos<0){
-				tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-				tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-				if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
+		    bool top = false;
+		    bool bottom = false;
+		    bool left = false;
+		    bool right = false;
+		    bool topleft = false;
+		    bool topright = false;
+		    bool bottomleft = false;
+		    bool bottomright = false;
+		    
+		    switch (clusterSize){
+		    case 1 :
+		      break;
+		    case 2 :
+		      if(xpos>ypos){
+			if(xpos>-ypos){
+			  right = true;
+			}else{
+			  bottom = true;
 			}
-			else {
-				tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-				tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-				if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		      }else{
+			if(xpos>-ypos){
+			  top = true;
+			}else{
+			  left = true;
 			}
+		      }
+		      break;
+		    case 3:
+		      if(xpos>0){
+			right = true;
+		      }else{
+			left = true;
+		      }
+		      if(ypos>0){
+			top = true;
+		      }else{
+			left = true;
+		      }
+		      break;
+		    case 4:
+		      if(xpos>0){
+			if(ypos>0){
+			  top = true;
+			  right = true;
+			  topright = true;
+			}else{
+			  bottom = true;
+			  right = true;
+			  bottomright = true;
+			}
+		      }else{
+			if(ypos>0){
+			  top = true;
+			  left = true;
+			  topleft = true;
+			}else{
+			  bottom = true;
+			  left = true;
+			  bottomleft = true;
+			}		      
+		      }		      
+		      break;
+		    default:
+		      break;
+		    }
+		    if(top){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(right){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(bottom){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(left){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(topright){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(topleft){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(bottomright){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		    if(bottomleft){
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		    }
+		  }
+		}else{
+		  
+		  G4double dist[5] = {0,0,0,0,0};
+		  for(int i =0;i<5;i++){
+		    dist[i] = TMath::Sqrt(pow(fabs(xpos)-xsig[i],2)+pow(fabs(ypos)-ysig[i],2));
+		  }
 
-			break;
+		  int cluster_type = indexofSmallestElement(dist,5);
+		
+		  if(zpos>(gD->GetSensorZ()/2.-depletionDepth)){
+		    switch (cluster_type) {
 
-		case 2 :
-			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		    case 0 :
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		      break;
+
+
+		    case 1 :
+
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      if(xpos<0){
+			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-			pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      }
+		      else {
+			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		      }
+
+		      break;
+
+		    case 2 :
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      if(ypos<0){
+			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      }
+		      else {
+			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+		      }
+		      break;
+
+		    case 3 :
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      if(xpos<0){
 
 			if(ypos<0){
-				tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-				tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-				if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			}
 			else {
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			}
+
+
+		      }
+		      else{
+
+			if(ypos<0){
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			}
+
+			else {
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			}
+
+		      }
+
+		      break;
+
+		    case 4 :
+		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+		      if(xpos<0){
+
+			if(ypos<0){
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  if(CLHEP::RandFlat::shoot(1)<0.4){
+
+			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+			  }
+			}
+
+			else {
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  if(CLHEP::RandFlat::shoot(1)<0.4){
+
+			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
+			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+			  }
+
+
+			}
+
+
+		      }
+		      else{
+
+			if(ypos<0){
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  if(CLHEP::RandFlat::shoot(1)<0.4){
+
+			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+			  }
+			}
+
+			else {
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+
+			  if(CLHEP::RandFlat::shoot(1)<0.4){
+
+			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
+			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
+			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+			  }
+			}
+
+		      }
+		      break;
+		    }
+		  }
+		  }
+		  }
+
+
+
+
+
+
+		  /*		// track enters at Z positive and leave at Z negative, pixel surface a Z positive, so we take only hits within Z_surface and Z_surface - depletionDepth
+				if(zpos>(thickness/2.-depletionDepth)){
+
 				tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-				tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-				if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-			}
-			break;
+				tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
+				pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
-		case 3 :
-			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-			pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
+				//G4cout << "[Mimosa26] Hit Energy : " << (*hitsCollection)[itr]->GetEdep()/keV << " zpos : " << zpos << endl;
 
-			if(xpos<0){
+				//G4cout << "[Mimosa26] pitch X "  << hpitchX << " probX : " << fabs(xpos)/hpitchX << endl;
 
-				if(ypos<0){
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
+				G4double probX,probY,probXY;
+				if(fabs(xpos)<hpitchX/2.){
+				probX = crosstalk_prob;
 				}
-				else {
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-				}
-
-
-			}
-			else{
-
-				if(ypos<0){
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-				}
-
-				else {
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-				}
-
-			}
-
-			break;
-
-		case 4 :
-			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-			pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-			if(xpos<0){
-
-				if(ypos<0){
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					if(CLHEP::RandFlat::shoot(1)<0.4){
-
-						tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-						tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-						if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-					}
-				}
-
-				else {
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					if(CLHEP::RandFlat::shoot(1)<0.4){
-
-						tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
-						tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-						if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-					}
-
-
-				}
-
-
-			}
-			else{
-
-				if(ypos<0){
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					if(CLHEP::RandFlat::shoot(1)<0.4){
-
-						tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-						tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
-						if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-					}
-				}
-
-				else {
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-					tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-					if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-					if(CLHEP::RandFlat::shoot(1)<0.4){
-
-						tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
-						tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
-						if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-					}
-				}
-
-			}
-			break;
-		}
-		}
-
-		}
-
-
-
-
-
-
-
-/*		// track enters at Z positive and leave at Z negative, pixel surface a Z positive, so we take only hits within Z_surface and Z_surface - depletionDepth
-		if(zpos>(thickness/2.-depletionDepth)){
-
-		tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-		tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
-		pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
-
-		//G4cout << "[Mimosa26] Hit Energy : " << (*hitsCollection)[itr]->GetEdep()/keV << " zpos : " << zpos << endl;
-
-		//G4cout << "[Mimosa26] pitch X "  << hpitchX << " probX : " << fabs(xpos)/hpitchX << endl;
-
-		G4double probX,probY,probXY;
-		if(fabs(xpos)<hpitchX/2.){
-			 probX = crosstalk_prob;
-		}
-		else{
-			 probX = 1;
-			//G4double probX = (fabs(xpos)/hpitchX);
+				else{
+				probX = 1;
+				//G4double probX = (fabs(xpos)/hpitchX);
 		};
 
 		if(fabs(ypos)<hpitchY/2.){

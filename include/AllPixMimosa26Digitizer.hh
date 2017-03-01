@@ -14,6 +14,7 @@
 
 #include <map>
 #include <vector>
+#include <cmath>
 
 using namespace std;
 
@@ -34,6 +35,13 @@ public:
   void SetDetectorDigitInputs(G4double);
   int  indexofSmallestElement(double array[], int size);
 private:
+
+  void readCSmap();
+  G4int getClusterSize(G4double, G4double);
+
+  bool hasCSmap;
+  G4int CSbins, CSsizes;
+  vector<vector<vector<double>>> CSmap;
 
   digitInput m_digitIn;
   AllPixMimosa26DigitsCollection * m_digitsCollection;
