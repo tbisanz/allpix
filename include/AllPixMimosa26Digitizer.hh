@@ -65,7 +65,6 @@ private:
   G4double * xsig; //G4double xsig[5];
   G4double * ysig; //G4double ysig[5];
 
-
 };
 
 #endif

@@ -85,7 +85,7 @@ int AllPixMimosa26Digitizer::indexofSmallestElement(double array[], int size)
 void AllPixMimosa26Digitizer::readCSmap()
 {
 
-    string filename = "macros/config/mimosaClusterSizeProb.csv";
+    string filename = "macros/config/mimosaClusterSizeProbUnbiased.csv";
     ifstream inp(filename);
 
     if(inp.is_open()){
@@ -136,6 +136,7 @@ G4int AllPixMimosa26Digitizer::getClusterSize(G4double xpos, G4double ypos)
 	    break;
 	}
     }
+
     return clSize;
 
 }
@@ -189,8 +190,9 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 		if(hasCSmap){
 
-		  G4int clusterSize = getClusterSize(xpos,ypos);
 		  if(zpos>(gD->GetSensorZ()/2.-depletionDepth)){
+	
+		    G4int clusterSize = getClusterSize(xpos,ypos);
 
 		    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
@@ -232,7 +234,7 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      if(ypos>0){
 			top = true;
 		      }else{
-			left = true;
+			bottom = true;
 		      }
 		      break;
 		    case 4:
@@ -310,11 +312,14 @@ void AllPixMimosa26Digitizer::Digitize(){
 		  }
 
 		  int cluster_type = indexofSmallestElement(dist,5);
+		  int npx = 0;
 		
 		  if(zpos>(gD->GetSensorZ()/2.-depletionDepth)){
+		    
 		    switch (cluster_type) {
 
 		    case 0 :
+		      npx++;
 		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -323,17 +328,20 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 		    case 1 :
 
+		      npx++;
 		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 		      if(xpos<0){
+			npx++;
 			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 		      }
 		      else {
+			npx++;
 			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -342,17 +350,20 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      break;
 
 		    case 2 :
+		      npx++;
 		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 		      if(ypos<0){
+			npx++;
 			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 		      }
 		      else {
+			npx++;
 			tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -360,6 +371,7 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      break;
 
 		    case 3 :
+		      npx++;
 		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -368,28 +380,34 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 			if(ypos<0){
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			}
 			else {
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
-			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
+			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -401,14 +419,17 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      else{
 
 			if(ypos<0){
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -417,14 +438,17 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 			else {
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -436,6 +460,7 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      break;
 
 		    case 4 :
+		      npx++;
 		      tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 		      tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 		      pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -444,16 +469,19 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 			if(ypos<0){
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			  if(CLHEP::RandFlat::shoot(1)<0.4){
 
+			    npx++;
 			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -461,16 +489,19 @@ void AllPixMimosa26Digitizer::Digitize(){
 			}
 
 			else {
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			  if(CLHEP::RandFlat::shoot(1)<0.4){
 
+			    npx++;
 			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()-1;
 			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -484,16 +515,19 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      else{
 
 			if(ypos<0){
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			  if(CLHEP::RandFlat::shoot(1)<0.4){
 
+			    npx++;
 			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()-1;
 			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -502,16 +536,19 @@ void AllPixMimosa26Digitizer::Digitize(){
 
 			else {
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX();
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
+			  npx++;
 			  tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			  tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY();
 			  if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
 
 			  if(CLHEP::RandFlat::shoot(1)<0.4){
 
+			    npx++;
 			    tempPixel.first  = (*hitsCollection)[itr]->GetPixelNbX()+1;
 			    tempPixel.second = (*hitsCollection)[itr]->GetPixelNbY()+1;
 			    if((tempPixel.first>=0 and tempPixel.second>=0) and (tempPixel.first<nPixX and tempPixel.second<nPixY)) pixelsContent[tempPixel] += (*hitsCollection)[itr]->GetEdep();
@@ -522,8 +559,9 @@ void AllPixMimosa26Digitizer::Digitize(){
 		      break;
 		    }
 		  }
-		  }
-		  }
+		  // G4cout << "\tnpx: " << npx << G4endl;
+		}
+	 }
 
 
 
