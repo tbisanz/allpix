@@ -112,34 +112,37 @@ void AllPixLCIOwriter::WriteEvent(int runnr, int eventID, map<int,vector<vector<
   char encodingString[50];
   sprintf(encodingString, "sensorID:7,sparsePixelType:5");
 
-  int planeNr = 0;
-
   LCCollectionVec* telescopeDataCollection = new LCCollectionVec( LCIO::TRACKERDATA );
   CellIDEncoder<TrackerDataImpl> telescopeEncoder(encodingString, telescopeDataCollection);
+  LCCollectionVec* dataCollection = new LCCollectionVec( LCIO::TRACKERDATA );
+  CellIDEncoder<TrackerDataImpl> encoder(encodingString, dataCollection);
 
   bool inTelescope=false;
-  
+  int sensorID = 0; 
+ 
   for (itr = data.begin(); itr != data.end(); itr++){ // Loop over the planes
+  bool inTelescope=false;
     
     int detId = itr->first;
 
-    if(detId >= 300 && detId < 350) inTelescope=true;
-    else inTelescope=false;
-    
-    LCCollectionVec* dataCollection = new LCCollectionVec( LCIO::TRACKERDATA );
-
-    CellIDEncoder<TrackerDataImpl> encoder(encodingString, dataCollection);
+    if(detId >= 300 && detId < 350) {
+      inTelescope=true;
+      sensorID = detId-300;
+    } else {
+      inTelescope=false;
+      sensorID = 10*(detId/100)+(detId)%10;
+    }
 
     TrackerDataImpl* planeData = new TrackerDataImpl();
 
 
     if(inTelescope){
-      telescopeEncoder["sensorID"] = planeNr;
+      telescopeEncoder["sensorID"] = sensorID;
       telescopeEncoder["sparsePixelType"] = 2;
       
       telescopeEncoder.setCellID(planeData);
     }else{
-      encoder["sensorID"] = planeNr;
+      encoder["sensorID"] = sensorID;
       encoder["sparsePixelType"] = 2;
 
       encoder.setCellID(planeData);
@@ -162,7 +165,7 @@ void AllPixLCIOwriter::WriteEvent(int runnr, int eventID, map<int,vector<vector<
         int y    = v_data[1];
         int tot  = v_data[2];
         int evID = v_data[3];
-        
+       
         map_xyTOT[x*1000+y] += tot;
         map_xyEvent[x*1000+y].push_back(evID);    
       }
@@ -186,6 +189,7 @@ void AllPixLCIOwriter::WriteEvent(int runnr, int eventID, map<int,vector<vector<
 	pixelData.push_back(x);
 	pixelData.push_back(y);
 	pixelData.push_back(tot);
+	pixelData.push_back(0);
 	
 	if(m_writeEventID){
 	pixelData.push_back(0);
@@ -195,30 +199,34 @@ void AllPixLCIOwriter::WriteEvent(int runnr, int eventID, map<int,vector<vector<
     }
 
     planeData->setChargeValues(pixelData);
-
+/*
     char collectionName[50];
 
     if(detId == 900){
       sprintf(collectionName, "CMSPixelDUT");
     }else if(detId == 901){
       sprintf(collectionName, "CMSPixelREF");
+    }else if (detId >= 200 && detId <= 250){
+      sprintf(collectionName, "zsdata_apix");
     }else{
       sprintf(collectionName, "Det%d",detId);
     }
-
+*/
     if(inTelescope){
       telescopeDataCollection->addElement(planeData);
+      //delete dataCollection;
+      //dataCollection = nullptr;
     }else{
       dataCollection->addElement(planeData);
-      event->addCollection(dataCollection, collectionName);
+     // event->addCollection(dataCollection, collectionName);
+     // delete telescopeDataCollection;
+     // telescopeDataCollection = nullptr;
     }
-
-    planeNr++;
-    
   }
 
   if(telescopePlanes){
     event->addCollection(telescopeDataCollection, "zsdata_m26");
+    event->addCollection(dataCollection, "zsdata_apix");
   }
 
 
