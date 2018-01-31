@@ -1174,6 +1174,68 @@ void AllPixDetectorConstruction::BuildTestStructure(int){
 		break;
 	}
 
+	case 105:
+	{
+		G4cout << "Building aluminum plate for X0 measurements" << G4endl;
+
+		map<int, G4ThreeVector>::iterator testStructItr3 = m_parVectorTestStructure.begin();
+
+		G4ThreeVector par;
+		for( ; testStructItr3 != m_parVectorTestStructure.end() ; testStructItr3++){
+		  par = (*testStructItr3).second;
+		}
+
+		G4cout << "Parameter vector: " << par << G4endl;
+
+		G4NistManager* nistman = G4NistManager::Instance();
+		G4Material * Polyethylene = nistman->FindOrBuildMaterial("G4_POLYETHYLENE");
+
+		G4double thickness;
+		if(par[0] != 0.){
+		  thickness = par[0]/2.*mm;
+		}else{
+		  thickness = 0.5*mm;
+		}
+		G4double length = 20.*mm;
+		G4Box * box1 = new G4Box("Box1", length, length, thickness);
+		
+		m_TestStructure_log = new G4LogicalVolume(box1, Polyethylene, "Box1");
+		G4cout << "Thickness of the plate: " << thickness*2. << G4endl;
+
+		
+		// Move the box down to align window with DUT based on macro value
+		map<int, G4ThreeVector>::iterator testStructItr = m_posVectorTestStructure.begin();
+
+		G4ThreeVector posRel;
+		for( ; testStructItr != m_posVectorTestStructure.end() ; testStructItr++){
+		  posRel = (*testStructItr).second;
+		}
+
+		G4RotationMatrix * rotMatrix;
+		map<int, G4RotationMatrix*>::iterator testStructItr2 = m_rotVectorTestStructure.begin();
+
+		for( ; testStructItr2 != m_rotVectorTestStructure.end() ; testStructItr2++){
+		  rotMatrix = (*testStructItr2).second;
+		}
+
+		G4cout << "Cube tilted by deg: " << rotMatrix[0].getTheta()/deg << G4endl;
+
+		G4VisAttributes * visAtt_bp = new G4VisAttributes(G4Color::Blue());
+		visAtt_bp->SetLineWidth(1);
+		visAtt_bp->SetForceSolid(true);
+		m_TestStructure_log->SetVisAttributes(visAtt_bp);
+		
+		m_TestStructure_phys = new G4PVPlacement(rotMatrix,
+				posRel,
+				m_TestStructure_log,
+				"Box1",
+				expHall_log,
+				false,
+				0);
+		
+		break;
+	}
+
 	default:
 	{
 		G4cout << "Unknown TestStructure Type" << G4endl;
