@@ -190,10 +190,6 @@ void AllPixLCIOwriter::WriteEvent(int runnr, int eventID, map<int,vector<vector<
 	pixelData.push_back(y);
 	pixelData.push_back(tot);
 	pixelData.push_back(0);
-	
-	if(m_writeEventID){
-	pixelData.push_back(0);
-	}
         
       }
     }
